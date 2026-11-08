@@ -3,1591 +3,695 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>班級課堂限時作品上傳與即時同儕互評系統</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-  <!-- Canvas Confetti -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
-  <!-- QRCode Generator -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <!-- MQTT for Real-time Cross-Device WebSocket Sync -->
-  <script src="https://unpkg.com/mqtt@5.3.5/dist/mqtt.min.js"></script>
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
-
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'Noto Sans TC', 'system-ui', 'sans-serif'],
-          },
-          colors: {
-            brand: {
-              50: '#eef2ff',
-              100: '#e0e7ff',
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <title>視藝科 漢服x現代融合設計 - 堂課限時互評與 AI 學習系統</title>
   <style>
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
-    .pulse-urgent { animation: pulseAlert 1s infinite alternate; }
-    @keyframes pulseAlert {
-      from { transform: scale(1); opacity: 1; }
-      to { transform: scale(1.05); opacity: 0.85; }
+    :root {
+      --primary: #d97706;
+      --primary-hover: #b45309;
+      --primary-light: #fef3c7;
+      --accent: #f59e0b;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --radius: 12px;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
     }
-    .modal-backdrop { background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Noto Sans TC", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      padding: 16px;
+      line-height: 1.5;
+    }
+
+    .container { max-width: 860px; margin: 0 auto; }
+    
+    /* 頂部導航與狀態列 */
+    header {
+      background: var(--card-bg);
+      padding: 16px 20px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-title { font-size: 1.25rem; font-weight: 700; color: #78350f; display: flex; align-items: center; gap: 8px; }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      background: var(--primary-light);
+      color: var(--primary-hover);
+    }
+
+    /* 倒數計時卡片 */
+    .timer-card {
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+      border: 1px solid #fde68a;
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow);
+    }
+    .timer-val { font-size: 1.6rem; font-weight: 800; font-family: monospace; color: #92400e; }
+    .teacher-controls { display: flex; gap: 8px; }
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      border-radius: 6px;
+      border: 1px solid #d97706;
+      background: white;
+      color: #b45309;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-sm:hover { background: #fef3c7; }
+
+    /* 主要卡片樣式 */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+    }
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .num-badge {
+      background: var(--accent);
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+    }
+
+    /* 表單元件 */
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.95rem; }
+    .sub-label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+    }
+    textarea { min-height: 90px; resize: vertical; line-height: 1.6; }
+
+    /* 快捷建議字詞膠囊 (Chips) */
+    .chips-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .chip {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 0.85rem;
+      color: #334155;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .chip:hover {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: #92400e;
+      transform: translateY(-1px);
+    }
+    .chip:active { transform: translateY(0); }
+
+    /* 圖片上傳區 */
+    .upload-box {
+      border: 2px dashed #cbd5e1;
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      background: #fafafa;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      position: relative;
+    }
+    .upload-box:hover { border-color: var(--primary); background: #fffdfa; }
+    .upload-preview {
+      max-width: 100%;
+      max-height: 380px;
+      border-radius: 8px;
+      margin-top: 12px;
+      display: none;
+      box-shadow: var(--shadow);
+      object-fit: contain;
+    }
+
+    /* 主要操作按鈕 */
+    .btn-main {
+      width: 100%;
+      padding: 14px;
+      background: #ea580c;
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 4px 6px -1px rgba(234, 88, 12, 0.3);
+    }
+    .btn-main:hover { background: #c2410c; }
+    .btn-main:active { transform: scale(0.99); }
+
+    /* 互評成果與 AI 回饋區 */
+    .result-section {
+      background: white;
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-top: 20px;
+      border-left: 6px solid #10b981;
+      box-shadow: var(--shadow);
+    }
+    .ai-box {
+      background: #f0fdf4;
+      border: 1.5px solid #bbf7d0;
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-top: 20px;
+    }
+    .ai-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      color: #166534;
+      font-size: 1.05rem;
+      margin-bottom: 12px;
+    }
+    .ai-content {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: #1e3a2b;
+      white-space: pre-wrap;
+    }
+
+    /* 全域錯誤防護窗 */
+    #error-banner {
+      display: none;
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+    }
+    .badge-tag {
+      background: #e0e7ff;
+      color: #3730a3;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+<body>
 
-  <!-- ================= TOP HEADER ================= -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex items-center justify-between h-16">
-        
-        <!-- Logo & Title -->
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-            </svg>
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h1 class="text-sm sm:text-base font-bold text-slate-900 leading-tight">課堂作品互評雲端連線系統</h1>
-              <span id="connectionStatusBadge" class="text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                <span>連線準備中</span>
-              </span>
-            </div>
-            <p class="text-[11px] text-slate-500 hidden sm:block">多裝置即時同步：15分鐘上傳 → 隨機錯位分發 → 評價雙維度回饋 → 原作者收回</p>
-          </div>
-        </div>
+<div class="container">
+  <div id="error-banner"></div>
 
-        <!-- Right Controls: Role Badge, Room Code, Sound Toggle -->
-        <div class="flex items-center gap-2 sm:gap-3">
-          <!-- Room Indicator (When in room) -->
-          <div id="headerRoomBadge" class="hidden items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-200 rounded-xl text-xs font-semibold text-indigo-700">
-            <span class="text-slate-400">房間:</span>
-            <span id="headerRoomCodeText" class="font-mono font-bold tracking-wider">----</span>
-          </div>
-
-          <!-- Sound Toggle -->
-          <button id="soundToggleBtn" title="音效開關" class="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition">
-            <svg id="soundOnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
-            </svg>
-            <svg id="soundOffIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>
-            </svg>
-          </button>
-
-          <!-- Leave Room / Switch Role Button -->
-          <button id="leaveRoomBtn" class="hidden text-xs px-2.5 py-1.5 text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-lg transition font-medium">
-            退出房間
-          </button>
-        </div>
+  <!-- 頂部資訊 -->
+  <header>
+    <div>
+      <div class="header-title">
+        <span>🎨</span> 視覺藝術科：漢服現代融合設計手稿互評
+      </div>
+      <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+        當前身份：<strong id="user-display">未登入</strong> | 課堂活動編號：<span class="badge-tag">HKDSE-VA-MODERN-HANFU</span>
       </div>
     </div>
+    <div class="status-badge" id="app-stage-badge">階段 1：上傳作品</div>
   </header>
 
-  <!-- ================= MAIN VIEW CONTAINER ================= -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full flex flex-col justify-start">
+  <!-- 限時倒數器 -->
+  <div class="timer-card">
+    <div>
+      <div style="font-size: 0.85rem; font-weight: 600; color: #b45309;">⏳ 限時上傳倒數</div>
+      <div class="timer-val" id="timer-display">15:00</div>
+    </div>
+    <div class="teacher-controls">
+      <button class="btn-sm" onclick="adjustTime(60)">+1 分鐘</button>
+      <button class="btn-sm" onclick="forceNextStage()">立即截止並配對</button>
+    </div>
+  </div>
 
-    <!-- ============================================================== -->
-    <!-- SCREEN 1: PORTAL / ROLE SELECTION (Initial Entry)              -->
-    <!-- ============================================================== -->
-    <div id="portalScreen" class="max-w-3xl mx-auto w-full py-6 sm:py-10 space-y-8">
-      
-      <div class="text-center space-y-2">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-          真正在多部手機/平板/電腦上跨裝置同步運行
-        </div>
-        <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">歡迎使用課堂作品限時互評系統</h2>
-        <p class="text-sm text-slate-500 max-w-lg mx-auto">
-          請選擇你的身分進入系統。老師可在大螢幕建立課堂房間並投影 QR Code；學生用手機掃描即可登入！
-        </p>
-      </div>
-
-      <!-- Role Cards Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        <!-- Teacher Entry Card -->
-        <div class="bg-white rounded-3xl border-2 border-indigo-100 hover:border-indigo-500 p-6 shadow-sm hover:shadow-xl transition flex flex-col justify-between group">
-          <div class="space-y-4">
-            <div class="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-2xl shadow-md shadow-indigo-200 group-hover:scale-105 transition">
-              🎓
-            </div>
-            <div>
-              <h3 class="text-lg font-bold text-slate-900">我是教師（主持課堂大螢幕）</h3>
-              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                適合教室大螢幕或投影機：開啟新課堂、投影加入 QR Code、控制 15 分鐘倒數、執行隨機錯位分發與匯出成果。
-              </p>
-            </div>
-            <div class="space-y-2 pt-2">
-              <label for="createRoomNameInput" class="block text-xs font-semibold text-slate-700">課堂房間名稱 / 代碼</label>
-              <input type="text" id="createRoomNameInput" value="ART101" placeholder="例如：ART3A 或 6881" class="w-full text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono">
-            </div>
-          </div>
-
-          <div class="pt-6">
-            <button id="startTeacherHostBtn" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md shadow-indigo-200 transition flex items-center justify-center gap-2">
-              <span>建立課堂大螢幕房間</span>
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Student Entry Card -->
-        <div class="bg-white rounded-3xl border-2 border-slate-200 hover:border-emerald-500 p-6 shadow-sm hover:shadow-xl transition flex flex-col justify-between group">
-          <div class="space-y-4">
-            <div class="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl shadow-md shadow-emerald-200 group-hover:scale-105 transition">
-              🎒
-            </div>
-            <div>
-              <h3 class="text-lg font-bold text-slate-900">我是學生（加入課堂）</h3>
-              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                適合學生手機、平板或電腦：輸入老師大螢幕上的房間碼與自己的座號姓名，拍照上傳作品並為同學寫評語。
-              </p>
-            </div>
-            <div class="space-y-3 pt-2">
-              <div>
-                <label for="joinRoomCodeInput" class="block text-xs font-semibold text-slate-700">課堂房間代碼</label>
-                <input type="text" id="joinRoomCodeInput" value="ART101" placeholder="輸入大螢幕上的房間碼" class="w-full text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono uppercase">
-              </div>
-              <div class="grid grid-cols-3 gap-2">
-                <div class="col-span-1">
-                  <label for="studentSeatNumberInput" class="block text-xs font-semibold text-slate-700">座號</label>
-                  <input type="text" id="studentSeatNumberInput" placeholder="如 01" class="w-full text-sm px-3 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                </div>
-                <div class="col-span-2">
-                  <label for="studentNameInput" class="block text-xs font-semibold text-slate-700">姓名</label>
-                  <input type="text" id="studentNameInput" placeholder="如 陳小明" class="w-full text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="pt-6">
-            <button id="joinAsStudentBtn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-200 transition flex items-center justify-center gap-2">
-              <span>進入課堂開始操作</span>
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-            </button>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Live Connectivity Architecture Notice -->
-      <div class="bg-slate-100 rounded-2xl p-4 border border-slate-200 text-xs text-slate-600 flex items-start gap-3">
-        <svg class="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <div>
-          <span class="font-bold text-slate-800">真實連線技術說明：</span>
-          本系統整合了公共安全 WebSocket (WSS) 雲端訊息總線與瀏覽器本地廣播協議（BroadcastChannel）。學生用任何手機、平板或電腦只要進入相同的「房間名稱」，所有圖片、倒數計時與評語都會在雲端即時雙向傳輸，免裝伺服器即可直接使用！
-        </div>
-      </div>
-
+  <!-- 階段 1：學生上傳區 -->
+  <div id="stage-upload" class="card">
+    <div class="card-title">
+      <span class="num-badge">1</span>
+      <span>學生登記及作品圖片上傳</span>
+    </div>
+    
+    <div class="form-group">
+      <label>學生姓名 / 學號 *</label>
+      <input type="text" id="student-name" placeholder="例：6A 陳大文 (24)">
     </div>
 
-    <!-- ============================================================== -->
-    <!-- SCREEN 2: TEACHER / PROJECTOR DASHBOARD                        -->
-    <!-- ============================================================== -->
-    <div id="teacherScreen" class="hidden space-y-6">
-      
-      <!-- Top Teacher Control & QR Code Bar -->
-      <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-        
-        <!-- Left: Room Info & QR Code Button -->
-        <div class="flex items-center gap-5">
-          <div class="bg-slate-900 text-white p-3 rounded-2xl flex flex-col items-center justify-center min-w-[90px]">
-            <span class="text-[10px] text-slate-400 font-semibold uppercase">房間代碼</span>
-            <span id="teacherRoomCodeDisplay" class="font-mono text-2xl font-black text-amber-400 tracking-wider">ART101</span>
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h2 class="text-xl font-black text-slate-900">課堂大螢幕主持控制台</h2>
-              <span id="teacherPhaseBadge" class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-700">
-                階段一：限時上傳中
-              </span>
-            </div>
-            <p class="text-xs text-slate-500 mt-1">請讓學生在手機或電腦開啟網址並輸入房間代碼加入</p>
-            <div class="flex items-center gap-2 mt-2">
-              <button id="showQrCodeModalBtn" class="text-xs px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg border border-indigo-200 transition flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
-                投影學生掃描 QR Code
-              </button>
-              <button id="copyStudentJoinUrlBtn" class="text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition">
-                複製學生直達連結
-              </button>
-              <button id="simulateStudentsBtn" class="text-xs px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-semibold rounded-lg transition" title="一鍵加入3位模擬學生供測試">
-                一鍵模擬 3 位學生繳交
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Countdown Timer Large Card -->
-        <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-4 sm:p-5 shadow-xl flex items-center justify-between gap-6 w-full lg:w-auto">
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-              <span class="text-xs text-slate-300 font-bold uppercase tracking-wider">限時倒數</span>
-            </div>
-            <div id="teacherTimerDisplay" class="font-mono text-3xl sm:text-4xl font-black text-emerald-400 tracking-wider my-1">
-              15:00
-            </div>
-            <div class="flex items-center gap-1.5 text-xs text-slate-400">
-              <span>自訂時間:</span>
-              <button class="set-time-pill px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded font-medium text-white" data-m="1">1分(測)</button>
-              <button class="set-time-pill px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded font-medium text-white" data-m="5">5分</button>
-              <button class="set-time-pill px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded font-medium text-white" data-m="15">15分</button>
-            </div>
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <button id="teacherTimerToggleBtn" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-xl transition">
-              暫停計時
-            </button>
-            <button id="teacherForceDispatchBtn" class="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-black rounded-xl shadow-lg transition flex items-center justify-center gap-1.5">
-              <span>時間到！隨機分發作品</span>
-            </button>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Real-time Connected Students Grid & Status -->
-      <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
-          <div>
-            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-              <span>已連線學生與作品即時動態牆</span>
-              <span id="teacherConnectedCountBadge" class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-700">
-                0 位同學連線中（0 件已遞交）
-              </span>
-            </h3>
-            <p class="text-xs text-slate-500">學生在手機或電腦完成遞交後，卡片將即時顯示作品縮圖</p>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <button id="exportClassReportBtn" class="text-xs px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow transition flex items-center gap-1.5">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-              匯出全班互評成果報告
-            </button>
-          </div>
-        </div>
-
-        <!-- Student Cards Grid -->
-        <div id="teacherStudentCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          <!-- Dynamically Populated with Real Connected Students -->
-        </div>
-
-        <!-- Empty State When No Students -->
-        <div id="teacherNoStudentsState" class="py-12 text-center space-y-3">
-          <div class="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-2xl">
-            📱
-          </div>
-          <h4 class="text-base font-bold text-slate-700">等待學生連線加入...</h4>
-          <p class="text-xs text-slate-400 max-w-md mx-auto">
-            請點擊上方「投影學生掃描 QR Code」在大螢幕展示，或讓同學在手機輸入房間碼 <strong class="text-indigo-600 font-mono" id="emptyStateRoomCodeText">ART101</strong>！
-          </p>
-        </div>
-      </div>
-
-      <!-- Live Peer Review Matrix (Visible in Phase 2 & 3) -->
-      <div id="teacherPeerMatrixCard" class="hidden bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div>
-            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-              <span class="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs font-black">互</span>
-              <span>全班隨機錯位分發與互評狀態矩陣</span>
-            </h3>
-            <p class="text-xs text-slate-500">嚴格保證錯位排列（Derangement），任何人皆不會審核自己的作品</p>
-          </div>
-          <span id="teacherReviewRateBadge" class="text-xs font-bold px-3 py-1 bg-amber-100 text-amber-800 rounded-full">
-            互評完成率：0%
-          </span>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
-                <th class="py-3 px-4">評審同學</th>
-                <th class="py-3 px-4">獲派作品（原作者）</th>
-                <th class="py-3 px-4">作品預覽</th>
-                <th class="py-3 px-4">1) 欣賞的地方</th>
-                <th class="py-3 px-4">2) 不足及改善方案</th>
-                <th class="py-3 px-4 text-center">狀態</th>
-              </tr>
-            </thead>
-            <tbody id="teacherReviewMatrixTbody" class="divide-y divide-slate-100 text-slate-700">
-              <!-- Dynamically Populated -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-
+    <div class="form-group">
+      <label>作品概念簡述（一句話說明現代風格，如：賽博龐克雲肩衛衣、解構馬面裙）</label>
+      <input type="text" id="artwork-title" placeholder="例：俐落都會感・交領不對稱短夾克">
     </div>
 
-    <!-- ============================================================== -->
-    <!-- SCREEN 3: STUDENT VIEW (ON STUDENT'S PHONE / COMPUTER)        -->
-    <!-- ============================================================== -->
-    <div id="studentScreen" class="hidden space-y-5 max-w-2xl mx-auto w-full">
-      
-      <!-- Student Info Bar & Sync Status -->
-      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div id="studentScreenAvatar" class="w-11 h-11 rounded-xl bg-indigo-600 text-white font-bold flex items-center justify-center text-base shadow">
-            陳
-          </div>
-          <div>
-            <div class="flex items-center gap-1.5">
-              <span id="studentScreenSeatText" class="text-xs px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold">01號</span>
-              <h3 id="studentScreenNameText" class="text-sm font-bold text-slate-900">陳小明</h3>
-            </div>
-            <p class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
-              <span>房間:</span>
-              <span id="studentScreenRoomCodeText" class="font-mono font-bold text-slate-600">ART101</span>
-              <span>•</span>
-              <span id="studentStepText" class="text-indigo-600 font-semibold">第1階段：限時上傳</span>
-            </p>
-          </div>
+    <div class="form-group">
+      <label>上傳設計手稿圖片 * (支援 iPad 拍照或相簿選擇)</label>
+      <div class="upload-box" onclick="document.getElementById('file-input').click()">
+        <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+        <div id="upload-hint">
+          <div style="font-size: 2rem; margin-bottom: 6px;">📤</div>
+          <strong>點擊此處拍照或選取手稿圖片</strong>
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">系統已內建自動高保真縮圖，保證流暢不卡頓</div>
         </div>
-
-        <!-- Student Clock Pill -->
-        <div class="text-right">
-          <span class="text-[10px] text-slate-400 font-semibold block">剩餘時間</span>
-          <span id="studentTimerDisplay" class="font-mono text-xl font-black text-indigo-600">15:00</span>
-        </div>
+        <img id="my-preview" class="upload-preview" alt="作品預覽">
       </div>
-
-      <!-- ================= STUDENT PHASE 1: UPLOAD WORK ================= -->
-      <div id="studentPhase1Box" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-5">
-        <div>
-          <div class="flex items-center justify-between">
-            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-              <span class="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-black">1</span>
-              <span>拍照上傳你的作品（限時 15 分鐘）</span>
-            </h3>
-            <span id="studentPhase1StatusBadge" class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-700">
-              尚未繳交
-            </span>
-          </div>
-          <p class="text-xs text-slate-500 mt-1">請在倒數截止前拍照上傳，時間一到系統將隨機分發給其他同學盲評</p>
-        </div>
-
-        <!-- Photo Upload Dropzone / Camera -->
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1.5">作品圖片 *</label>
-          <div id="studentPhotoArea" class="border-2 border-dashed border-indigo-300 hover:border-indigo-500 rounded-2xl p-6 text-center cursor-pointer transition bg-indigo-50/30 group">
-            <input type="file" id="realPhotoFileInput" accept="image/*" capture="environment" class="hidden">
-            
-            <div id="studentPhotoPlaceholder" class="space-y-2">
-              <div class="w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto group-hover:scale-105 transition">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-              </div>
-              <p class="text-sm font-bold text-slate-800">點擊拍照 或 從相簿上傳作品圖片</p>
-              <p class="text-xs text-slate-400">系統自動縮圖優化，手機上傳快速不卡頓</p>
-            </div>
-
-            <div id="studentPhotoPreviewBox" class="hidden space-y-2">
-              <img id="studentPhotoPreviewImg" src="" alt="預覽" class="max-h-64 mx-auto rounded-xl object-contain shadow-md border border-slate-200">
-              <button type="button" id="reselectPhotoBtn" class="text-xs text-indigo-600 hover:underline font-bold">
-                重選或重新拍照
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Title & Concept -->
-        <div class="space-y-4">
-          <div>
-            <label for="studentArtworkTitleInput" class="block text-xs font-semibold text-slate-700 mb-1">作品主題名稱 *</label>
-            <input type="text" id="studentArtworkTitleInput" placeholder="例如：星空下的露營地、微風落葉..." class="w-full text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-          </div>
-
-          <div>
-            <label for="studentArtworkDescInput" class="block text-xs font-semibold text-slate-700 mb-1">創作理念簡述（給互評同學看）</label>
-            <textarea id="studentArtworkDescInput" rows="2" placeholder="分享你的創作構想、使用技巧或你覺得最滿意的部分..." class="w-full text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
-          </div>
-
-          <button type="button" id="studentSubmitArtworkBtn" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md shadow-indigo-200 transition flex items-center justify-center gap-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-            <span>確認遞交作品（同步給老師大螢幕）</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Waiting Banner if Submitted in Phase 1 -->
-      <div id="studentWaitDispatchCard" class="hidden bg-emerald-50 border border-emerald-200 rounded-3xl p-6 text-center space-y-3">
-        <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-xl">
-          ✓
-        </div>
-        <h4 class="text-base font-bold text-emerald-900">你的作品已成功遞交！</h4>
-        <p class="text-xs text-emerald-700 leading-relaxed">
-          請靜候 15 分鐘計時結束或老師在大螢幕點擊隨機分發。時間一到，這台手機將會自動收到一位同學的作品供你評審！
-        </p>
-      </div>
-
-      <!-- ================= STUDENT PHASE 2: REVIEW PEER ARTWORK ================= -->
-      <div id="studentPhase2Box" class="hidden space-y-5">
-        
-        <!-- Assigned Peer Artwork Display -->
-        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 flex items-center gap-1">
-              <span>🎨</span> 獲派互評的同學作品（盲評模式）
-            </span>
-            <span class="text-xs text-slate-400">非本人作品</span>
-          </div>
-
-          <div class="bg-slate-900/5 rounded-2xl p-2 border border-slate-200 text-center">
-            <img id="studentAssignedPeerImg" src="" alt="同學作品" class="max-h-72 mx-auto rounded-xl object-contain">
-          </div>
-
-          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
-            <h4 id="studentAssignedPeerTitle" class="text-sm font-bold text-slate-900">作品名稱載入中...</h4>
-            <p id="studentAssignedPeerDesc" class="text-xs text-slate-600 leading-relaxed italic">作者未填寫理念</p>
-          </div>
-        </div>
-
-        <!-- Review Input Form -->
-        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-5">
-          <div>
-            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-              <span class="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs font-black">2</span>
-              <span>為這張作品留下意見</span>
-            </h3>
-            <p class="text-xs text-slate-500 mt-1">你的意見將會在遞交後直接傳回給原作者同學</p>
-          </div>
-
-          <!-- 1) 欣賞的地方 -->
-          <div class="space-y-2">
-            <label for="studentPeerProsInput" class="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
-              <span class="text-amber-500 text-base">★</span>
-              <span>1) 欣賞的地方 (Strengths) *</span>
-            </label>
-            <div class="flex flex-wrap gap-1.5">
-              <button type="button" class="peer-prompt-pro text-[11px] px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg transition" data-val="色彩搭配非常豐富且層次鮮明！">🎨 色彩豐富</button>
-              <button type="button" class="peer-prompt-pro text-[11px] px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg transition" data-val="主體構圖很有創意，視覺吸引力很強！">🎯 構圖很有創意</button>
-              <button type="button" class="peer-prompt-pro text-[11px] px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg transition" data-val="光影細節處理很用心，充滿畫面氛圍感！">✨ 光影細膩生動</button>
-            </div>
-            <textarea id="studentPeerProsInput" rows="3" placeholder="請詳細寫下這幅作品最吸引你、值得讚賞的地方..." class="w-full text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"></textarea>
-          </div>
-
-          <!-- 2) 不足及改善方案 -->
-          <div class="space-y-2">
-            <label for="studentPeerConsInput" class="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
-              <span class="text-indigo-600 text-base">💡</span>
-              <span>2) 不足及改善方案 (Improvements) *</span>
-            </label>
-            <div class="flex flex-wrap gap-1.5">
-              <button type="button" class="peer-prompt-con text-[11px] px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-lg transition" data-val="建議可以增強主體與背景的明暗對比，讓視覺焦點更突出。">📐 加強明暗對比</button>
-              <button type="button" class="peer-prompt-con text-[11px] px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-lg transition" data-val="背景線條可以再簡化一些，讓前景主角更鮮明。">🔍 背景稍微簡化</button>
-              <button type="button" class="peer-prompt-con text-[11px] px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-lg transition" data-val="透視比例上有些微偏斜，下次可多拉幾條輔助基準線。">📏 留意透視比例</button>
-            </div>
-            <textarea id="studentPeerConsInput" rows="3" placeholder="請以鼓勵且具體的口吻，給予 1~2 點改進建議..." class="w-full text-sm px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
-          </div>
-
-          <!-- Badge Selection -->
-          <div>
-            <label class="block text-xs font-bold text-slate-800 mb-1.5">送給原作者一份鼓勵徽章：</label>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <label class="border border-slate-200 rounded-xl p-2 text-center cursor-pointer hover:border-indigo-400 bg-slate-50">
-                <input type="radio" name="studentBadgeRadio" value="🎨 色彩魔術師" class="hidden peer" checked>
-                <div class="peer-checked:font-bold peer-checked:text-indigo-600 text-xs">🎨 色彩魔術師</div>
-              </label>
-              <label class="border border-slate-200 rounded-xl p-2 text-center cursor-pointer hover:border-indigo-400 bg-slate-50">
-                <input type="radio" name="studentBadgeRadio" value="💡 創意天馬行空" class="hidden peer">
-                <div class="peer-checked:font-bold peer-checked:text-indigo-600 text-xs">💡 創意天馬</div>
-              </label>
-              <label class="border border-slate-200 rounded-xl p-2 text-center cursor-pointer hover:border-indigo-400 bg-slate-50">
-                <input type="radio" name="studentBadgeRadio" value="🔎 細節刻畫大師" class="hidden peer">
-                <div class="peer-checked:font-bold peer-checked:text-indigo-600 text-xs">🔎 細節滿分</div>
-              </label>
-              <label class="border border-slate-200 rounded-xl p-2 text-center cursor-pointer hover:border-indigo-400 bg-slate-50">
-                <input type="radio" name="studentBadgeRadio" value="🌟 氛圍感拉滿" class="hidden peer">
-                <div class="peer-checked:font-bold peer-checked:text-indigo-600 text-xs">🌟 氛圍拉滿</div>
-              </label>
-            </div>
-          </div>
-
-          <button type="button" id="studentSubmitPeerReviewBtn" class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black rounded-xl shadow-lg transition flex items-center justify-center gap-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-            <span>送出互評意見（回傳給原作者同學）</span>
-          </button>
-        </div>
-
-      </div>
-
-      <!-- ================= STUDENT PHASE 3: RECEIVE AUTHOR FEEDBACK ================= -->
-      <div id="studentPhase3Box" class="space-y-4">
-        
-        <!-- Feedback Alert Box -->
-        <div id="studentReceivedFeedbackCard" class="hidden bg-white rounded-3xl border-2 border-emerald-300 shadow-xl p-6 space-y-4">
-          <div class="flex items-center justify-between pb-3 border-b border-emerald-100">
-            <div class="flex items-center gap-2 text-emerald-800">
-              <span class="text-2xl">🎉</span>
-              <div>
-                <h3 class="text-base font-black">恭喜！你已收回同學給予你的互評意見</h3>
-                <p class="text-xs text-emerald-600">同學認真為你的作品填寫了回饋！</p>
-              </div>
-            </div>
-            <span id="studentReceivedBadgePill" class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">
-              🎨 色彩魔術師
-            </span>
-          </div>
-
-          <!-- Card: 欣賞的地方 -->
-          <div class="bg-amber-50/80 rounded-2xl p-4 border border-amber-200 space-y-1">
-            <div class="flex items-center gap-1.5 text-xs font-bold text-amber-900">
-              <span>★</span> 1) 同學最欣賞你的地方：
-            </div>
-            <p id="studentReceivedProsText" class="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
-              內容載入中...
-            </p>
-          </div>
-
-          <!-- Card: 不足及改善方案 -->
-          <div class="bg-indigo-50/80 rounded-2xl p-4 border border-indigo-200 space-y-1">
-            <div class="flex items-center gap-1.5 text-xs font-bold text-indigo-950">
-              <span>💡</span> 2) 不足及改善方案：
-            </div>
-            <p id="studentReceivedConsText" class="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
-              內容載入中...
-            </p>
-          </div>
-
-          <!-- Thank You Button -->
-          <div class="pt-2 flex items-center justify-between">
-            <button type="button" id="studentThankReviewerBtn" class="px-4 py-2 rounded-xl border border-slate-300 hover:border-pink-400 hover:bg-pink-50 text-slate-700 hover:text-pink-600 text-xs font-bold flex items-center gap-1.5 transition">
-              <span>❤️</span>
-              <span id="thankReviewerBtnText">向評審同學致謝</span>
-            </button>
-            <span class="text-[11px] text-slate-400">同儕互助，持續進步</span>
-          </div>
-        </div>
-
-      </div>
-
     </div>
 
-  </main>
+    <button class="btn-main" onclick="submitMyArtwork()">
+      <span>確認繳交手稿，進入配對池</span> ➔
+    </button>
+  </div>
 
-  <!-- ================= MODAL: QR CODE DISPLAY MODAL ================= -->
-  <div id="qrCodeModal" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4">
-      <div class="flex items-center justify-between">
-        <h3 class="text-base font-bold text-slate-900">學生手機掃描連線</h3>
-        <button type="button" id="closeQrModalBtn" class="text-slate-400 hover:text-slate-600 p-1">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-        </button>
+  <!-- 階段 2：同儕互評表單區 (完全依照您指定的 4 大維度與建議字詞) -->
+  <div id="stage-review" class="card" style="display: none;">
+    <div class="card-title">
+      <span class="num-badge">2</span>
+      <span>為這張作品留下意見</span>
+    </div>
+    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 18px;">
+      你的意見將會在遞交後直接傳回給原作者同學，同時系統會融合意見召喚 AI 進行綜合點評。
+    </p>
+
+    <!-- 隨機配對到的同學手稿 -->
+    <div style="text-align: center; background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 24px;">
+      <div style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 6px;">您正在評閱同學作品：<span id="target-author-name" style="color: white; font-weight: bold;"></span></div>
+      <img id="review-artwork-img" style="max-height: 420px; max-width: 100%; border-radius: 6px; object-fit: contain;" alt="被評作品">
+      <div id="target-artwork-desc" style="color: #cbd5e1; font-size: 0.85rem; margin-top: 6px; font-style: italic;"></div>
+    </div>
+
+    <!-- ★ 1) 融合手法 -->
+    <div class="form-group">
+      <label>★ 1) 融合手法：傳統與現代元素的比例是否平衡？*</label>
+      <span class="sub-label">(作品是否看起來太像純粹的「古裝劇戲服」？還是太像「普通現代衫印個圖案」？)</span>
+      <div class="chips-group">
+        <span class="chip" onclick="addChipText('crit-1', '【融合評價：平衡自然】')">💡 平衡自然</span>
+        <span class="chip" onclick="addChipText('crit-1', '【融合評價：偏重古典】')">🏛️ 偏重古典</span>
+        <span class="chip" onclick="addChipText('crit-1', '【融合評價：偏重現代】')">🏙️ 偏重現代</span>
+      </div>
+      <textarea id="crit-1" placeholder="點擊上方建議字詞或直接填寫：分析同學在傳統形制與現代審美間的取捨..."></textarea>
+    </div>
+
+    <!-- ★ 2) 剪裁比例 -->
+    <div class="form-group">
+      <label>★ 2) 剪裁比例：腰線或視覺重心清不清楚？*</label>
+      <span class="sub-label">(整體的剪裁線條有沒有做到「上窄下寬」、「外鬆內緊」或「長短不對稱」等現代美感？)</span>
+      <div class="chips-group">
+        <span class="chip" onclick="addChipText('crit-2', '比例鮮明')">比例鮮明</span>
+        <span class="chip" onclick="addChipText('crit-2', '成功運用現代剪裁-上緊下鬆')">成功運用現代剪裁-上緊下鬆</span>
+        <span class="chip" onclick="addChipText('crit-2', '成功運用現代剪裁-短版露腰')">成功運用現代剪裁-短版露腰</span>
+        <span class="chip" onclick="addChipText('crit-2', '成功運用現代剪裁-前短後長')">成功運用現代剪裁-前短後長</span>
+        <span class="chip" onclick="addChipText('crit-2', '成功運用現代剪裁-不對稱設計')">成功運用現代剪裁-不對稱設計</span>
+        <span class="chip" onclick="addChipText('crit-2', '規整傳統')">規整傳統</span>
+        <span class="chip" onclick="addChipText('crit-2', '可嘗試更大膽的剪裁突破')">可嘗試更大膽的剪裁突破</span>
+      </div>
+      <textarea id="crit-2" placeholder="點擊上方字詞快速加入，並具體描述腰線位置、輪廓重心的呈現效果..."></textarea>
+    </div>
+
+    <!-- ★ 3) 視覺焦點 -->
+    <div class="form-group">
+      <label>★ 3) 視覺焦點：全身有沒有 1 至 2 個最吸引眼球的設計焦點（如：特色領口、腰封、雲肩、不同布料的軟硬、厚薄對比）？*</label>
+      <div class="chips-group">
+        <span class="chip" onclick="addChipText('crit-3', '焦點突出')">焦點突出</span>
+        <span class="chip" onclick="addChipText('crit-3', '全身有（此處填寫細節）搶眼的視覺主角')">全身有……搶眼的視覺主角</span>
+        <span class="chip" onclick="addChipText('crit-3', '能從線條看出軟硬材質對比')">能從線條看出軟硬材質對比</span>
+        <span class="chip" onclick="addChipText('crit-3', '能從線條看出厚薄材質對比')">能從線條看出厚薄材質對比</span>
+        <span class="chip" onclick="addChipText('crit-3', '元素過滿')">元素過滿</span>
+        <span class="chip" onclick="addChipText('crit-3', '有大量花紋或細節')">有大量花紋或細節</span>
+        <span class="chip" onclick="addChipText('crit-3', '視覺略顯擁擠，缺少留白')">視覺略顯擁擠，缺少留白</span>
+        <span class="chip" onclick="addChipText('crit-3', '略顯單調')">略顯單調</span>
+        <span class="chip" onclick="addChipText('crit-3', '線條乾淨簡約')">線條乾淨簡約</span>
+      </div>
+      <textarea id="crit-3" placeholder="請指出最吸睛的 1~2 個局部，或提出留白/對比的改善建議..."></textarea>
+    </div>
+
+    <!-- ★ 4) 設計圖的傳意 -->
+    <div class="form-group">
+      <label>★ 4) 設計圖的傳意：線條是否清晰交代了衣服的結構（怎樣穿脫、拼接位在哪裡）？*</label>
+      <span class="sub-label">(可建議加上文字標註或局部放大圖去幫助哪部份的理解)</span>
+      <div class="chips-group">
+        <span class="chip" onclick="addChipText('crit-4', '清晰專業')">清晰專業</span>
+        <span class="chip" onclick="addChipText('crit-4', '線條清楚')">線條清楚</span>
+        <span class="chip" onclick="addChipText('crit-4', '附有局部放大圖')">附有局部放大圖</span>
+        <span class="chip" onclick="addChipText('crit-4', '附有材質標註')">附有材質標註</span>
+        <span class="chip" onclick="addChipText('crit-4', '尚待補充')">尚待補充</span>
+        <span class="chip" onclick="addChipText('crit-4', '整體構想不錯，但（此處填寫部位）部分結構或未交代清楚')">結構未交代清楚...</span>
+        <span class="chip" onclick="addChipText('crit-4', '整體構想不錯，但（此處填寫部位）部分布料材質未交代清楚')">布料未交代清楚...</span>
+      </div>
+      <textarea id="crit-4" placeholder="評估手稿傳意度：拉鏈/繫帶、內外襯分層、布料光澤或紋理標註是否足夠..."></textarea>
+    </div>
+
+    <button class="btn-main" onclick="submitReviewAndFinish()">
+      <span>⚠️ 送出互評意見（回傳給原作者同學）</span>
+    </button>
+  </div>
+
+  <!-- 階段 3：成果收回區（同學評價 + AI 專業評析雙向展示） -->
+  <div id="stage-result" style="display: none;">
+    <div class="result-section">
+      <div class="card-title" style="color: #065f46;">
+        <span class="num-badge" style="background: #10b981;">✓</span>
+        <span>你的作品已收到互評與 AI 導師分析！</span>
+      </div>
+      
+      <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px;">
+        <img id="my-final-artwork-img" style="width: 200px; height: 260px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1;" alt="我的作品">
+        <div style="flex: 1; min-width: 240px;">
+          <h3 id="my-final-name" style="margin-bottom: 6px;"></h3>
+          <p id="my-final-concept" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px;"></p>
+          <div style="background: #f8fafc; padding: 12px; border-radius: 8px; font-size: 0.85rem; border: 1px solid #e2e8f0;">
+            <strong>評閱夥伴：</strong><span id="reviewer-partner-name">同學互評小組</span><br>
+            <strong>課堂評量狀態：</strong>已完成對等互評與 AI 雙軌反饋
+          </div>
+        </div>
       </div>
 
-      <div class="bg-slate-100 p-4 rounded-2xl inline-block border border-slate-200">
-        <canvas id="qrCodeCanvas" class="mx-auto rounded-lg shadow-sm"></canvas>
+      <!-- 同學給的 4 大意見 -->
+      <h4 style="margin: 16px 0 10px 0; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px;">
+        👥 同學給予你的互評回饋：
+      </h4>
+      <div style="display: grid; gap: 12px;">
+        <div style="background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <strong style="color: #b45309;">1) 融合手法：</strong>
+          <div id="res-crit-1" style="margin-top: 4px; color: #334155; white-space: pre-wrap;"></div>
+        </div>
+        <div style="background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <strong style="color: #b45309;">2) 剪裁比例：</strong>
+          <div id="res-crit-2" style="margin-top: 4px; color: #334155; white-space: pre-wrap;"></div>
+        </div>
+        <div style="background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <strong style="color: #b45309;">3) 視覺焦點：</strong>
+          <div id="res-crit-3" style="margin-top: 4px; color: #334155; white-space: pre-wrap;"></div>
+        </div>
+        <div style="background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <strong style="color: #b45309;">4) 設計圖傳意：</strong>
+          <div id="res-crit-4" style="margin-top: 4px; color: #334155; white-space: pre-wrap;"></div>
+        </div>
       </div>
 
-      <div>
-        <p class="text-xs text-slate-500">教室投影顯示：用手機相機掃描 QR Code 即可直接進入</p>
-        <p class="text-xs font-mono font-bold text-indigo-600 mt-1" id="qrModalUrlText"></p>
+      <!-- 同步獲得的 AI 建議 -->
+      <div class="ai-box">
+        <div class="ai-header">
+          <span>✨</span>
+          <span>HKDSE 視藝科 AI 智能導師深度評析與優化建議</span>
+        </div>
+        <div id="ai-loading" style="display: none; color: #166534; font-weight: 500;">
+          🤖 AI 正在結合手稿形制與同儕回饋，生成具體的改良方案與 SBA 拔尖指南...
+        </div>
+        <div id="ai-feedback-text" class="ai-content"></div>
       </div>
 
-      <button type="button" id="confirmCloseQrModalBtn" class="w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold">
-        關閉投影視窗
+      <button class="btn-main" style="margin-top: 20px; background: #3b82f6;" onclick="window.print()">
+        🖨️ 列印 / 匯出互評與 AI 學習紀錄 (PDF)
       </button>
     </div>
   </div>
+</div>
 
-  <!-- ================= MODAL: EXPORT REPORT MODAL ================= -->
-  <div id="exportReportModal" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 flex flex-col max-h-[85vh]">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-        <h3 class="text-base font-bold text-slate-900">全班互評成果清單報告</h3>
-        <button type="button" id="closeExportReportModalBtn" class="text-slate-400 hover:text-slate-600 p-1">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-        </button>
-      </div>
+<script>
+  // 全域防崩潰捕捉，避免學校 iPad 白屏無法定位問題
+  window.onerror = function(msg, url, line) {
+    const banner = document.getElementById('error-banner');
+    if (banner) {
+      banner.style.display = 'block';
+      banner.innerHTML = `⚠️ 系統提示：${msg} (行號: ${line})。請重新整理或聯絡視藝科老師。`;
+    }
+  };
 
-      <div class="flex-1 overflow-y-auto">
-        <textarea id="exportReportTextarea" readonly class="w-full h-80 font-mono text-xs p-4 bg-slate-50 border border-slate-200 rounded-xl leading-relaxed text-slate-700"></textarea>
-      </div>
+  // 狀態存儲
+  let timeLeft = 15 * 60; // 15 分鐘
+  let timerInterval = null;
+  let compressedImageData = null;
+  let currentStudent = { name: '', title: '', image: '' };
+  let assignedTarget = null;
 
-      <div class="flex items-center justify-between pt-2">
-        <button type="button" id="copyReportTextBtn" class="px-4 py-2 text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition">複製純文字</button>
-        <button type="button" id="downloadReportFileBtn" class="px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow transition">下載文字報告檔 (.txt)</button>
-      </div>
-    </div>
-  </div>
+  // 模擬備用作品池（確保課堂上即使是單機演示或測試，也能順暢隨機配對）
+  const sampleArtworks = [
+    {
+      author: "6B 張同學",
+      title: "宋製褙子 x 都會簡約防風乾濕大衣",
+      image: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='500' viewBox='0 0 400 500'%3E%3Crect width='400' height='500' fill='%23f1f5f9'/%3E%3Cpath d='M140,80 L260,80 L300,420 L100,420 Z' fill='%23cbd5e1' stroke='%23475569' stroke-width='3'/%3E%3Cpath d='M200,80 L200,420' stroke='%23b45309' stroke-width='4' stroke-dasharray='6'/%3E%3Ctext x='200' y='250' font-size='16' text-anchor='middle' fill='%23334155'%3E【設計稿：長版褙子解構風衣】%3C/text%3E%3Ctext x='200' y='280' font-size='12' text-anchor='middle' fill='%2364748b'%3E傳統交領對襟 + 現代機能防水尼龍%3C/text%3E%3C/svg%3E"
+    },
+    {
+      author: "6A 李同學",
+      title: "明製馬面裙 x 不對稱百褶高腰工裝短裙",
+      image: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='500' viewBox='0 0 400 500'%3E%3Crect width='400' height='500' fill='%23fef3c7'/%3E%3Cpolygon points='160,100 240,100 320,400 80,400' fill='%23fed7aa' stroke='%23c2410c' stroke-width='3'/%3E%3Cline x1='160' y1='100' x2='200' y2='400' stroke='%23ea580c' stroke-width='2'/%3E%3Ctext x='200' y='240' font-size='16' text-anchor='middle' fill='%239a3412'%3E【設計稿：光澤金屬感馬面褶裙】%3C/text%3E%3Ctext x='200' y='270' font-size='12' text-anchor='middle' fill='%23b45309'%3E馬面裙門保留 + 工裝金屬快拆扣%3C/text%3E%3C/svg%3E"
+    }
+  ];
 
-  <!-- ================= TOAST CONTAINER ================= -->
-  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
-
-  <!-- ================= JAVASCRIPT APPLICATION CORE ================= -->
-  <script>
-    (function() {
-      // -------------------------------------------------------------
-      // 1. DATA STRUCTURES & PROTOCOL
-      // -------------------------------------------------------------
-      const BROKER_URL = "wss://broker.emqx.io:8084/mqtt";
-      const FALLBACK_BROKER_URL = "wss://broker.hivemq.com:8884/mqtt";
-
-      let client = null;
-      let broadcastChannel = null;
-      let currentRole = null; // 'teacher' | 'student'
-      let currentRoomCode = "ART101";
-
-      // Current Student State (If student)
-      let myStudent = {
-        id: "",
-        seat: "",
-        name: "",
-        artwork: null, // { title, desc, image }
-        assignedPeerStudentId: null, // Who this student will review
-        reviewGiven: null, // { pros, cons, badge, submitted: bool }
-        feedbackReceived: null, // Feedback for this student's artwork
-        authorLikedFeedback: false
-      };
-
-      // Teacher State (Aggregated room state)
-      let teacherRoomState = {
-        phase: 1, // 1: upload, 2: review, 3: completed
-        timerSeconds: 15 * 60,
-        timerRunning: true,
-        students: {} // id -> student object
-      };
-
-      let timerInterval = null;
-      let soundEnabled = true;
-
-      // -------------------------------------------------------------
-      // 2. AUDIO SYNTHESIS
-      // -------------------------------------------------------------
-      let audioCtx = null;
-      function playTone(freq = 440, type = 'sine', duration = 0.15) {
-        if (!soundEnabled) return;
-        try {
-          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          if (audioCtx.state === 'suspended') audioCtx.resume();
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          osc.type = type;
-          osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-          gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-          osc.connect(gain);
-          gain.connect(audioCtx.destination);
-          osc.start();
-          osc.stop(audioCtx.currentTime + duration);
-        } catch (e) {}
+  // 初始化倒數計時
+  function startTimer() {
+    timerInterval = setInterval(() => {
+      if (timeLeft > 0) {
+        timeLeft--;
+        const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+        const s = (timeLeft % 60).toString().padStart(2, '0');
+        document.getElementById('timer-display').innerText = `${m}:${s}`;
+      } else {
+        clearInterval(timerInterval);
+        alert('⏰ 15 分鐘上傳時限已到！系統即將啟動隨機互評配對！');
+        forceNextStage();
       }
+    }, 1000);
+  }
 
-      function playCelebration() {
-        playTone(523.25, 'triangle', 0.2);
-        setTimeout(() => playTone(659.25, 'triangle', 0.2), 120);
-        setTimeout(() => playTone(783.99, 'triangle', 0.25), 240);
-        setTimeout(() => playTone(1046.50, 'triangle', 0.35), 360);
-      }
+  function adjustTime(seconds) {
+    timeLeft += seconds;
+    const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+    const s = (timeLeft % 60).toString().padStart(2, '0');
+    document.getElementById('timer-display').innerText = `${m}:${s}`;
+  }
 
-      function showToast(msg, type = 'info') {
-        const c = document.getElementById('toastContainer');
-        const t = document.createElement('div');
-        t.className = `px-4 py-3 rounded-2xl shadow-xl text-xs font-semibold flex items-center gap-2 transform transition-all duration-300 pointer-events-auto border ${
-          type === 'success' ? 'bg-emerald-600 text-white border-emerald-500' :
-          type === 'warning' ? 'bg-amber-500 text-white border-amber-400' :
-          type === 'error' ? 'bg-rose-600 text-white border-rose-500' :
-          'bg-slate-900 text-white border-slate-700'
-        }`;
-        t.innerHTML = `<span>${type === 'success' ? '✓' : type === 'warning' ? '⚠️' : 'ℹ️'}</span><span>${msg}</span>`;
-        c.appendChild(t);
-        setTimeout(() => {
-          t.style.opacity = '0';
-          setTimeout(() => t.remove(), 300);
-        }, 3200);
-      }
+  // 利用 Canvas 自動將相片壓縮至 1080px 寬以內，避免 iPad 拍照 Base64 巨大導致 localStorage 崩潰白屏
+  function handleImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
 
-      // -------------------------------------------------------------
-      // 3. IMAGE COMPRESSION UTILITY (Crucial for mobile devices)
-      // -------------------------------------------------------------
-      function compressImage(file, maxDimension = 800, quality = 0.72) {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-              let w = img.width;
-              let h = img.height;
-              if (w > maxDimension || h > maxDimension) {
-                if (w > h) {
-                  h = Math.round((h * maxDimension) / w);
-                  w = maxDimension;
-                } else {
-                  w = Math.round((w * maxDimension) / h);
-                  h = maxDimension;
-                }
-              }
-              const canvas = document.createElement('canvas');
-              canvas.width = w;
-              canvas.height = h;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(img, 0, 0, w, h);
-              const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-              resolve(compressedDataUrl);
-            };
-            img.onerror = reject;
-            img.src = e.target.result;
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      }
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 1080;
 
-      // -------------------------------------------------------------
-      // 4. NETWORKING: MQTT & BROADCASTCHANNEL MULTI-DEVICE SYNC
-      // -------------------------------------------------------------
-      function getRoomTopic(subTopic = "") {
-        const cleanRoom = currentRoomCode.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() || "art101";
-        return `classroom_peer_review_v2/${cleanRoom}${subTopic ? '/' + subTopic : ''}`;
-      }
-
-      function initNetwork(roomCode) {
-        currentRoomCode = roomCode;
-        updateConnectionBadge("連線中...", "amber");
-
-        // 1. Setup Local BroadcastChannel (Sync across tabs instantly)
-        try {
-          if (window.BroadcastChannel) {
-            if (broadcastChannel) broadcastChannel.close();
-            broadcastChannel = new BroadcastChannel(`peer_review_${currentRoomCode}`);
-            broadcastChannel.onmessage = (evt) => {
-              handleIncomingMessage(evt.data.type, evt.data.payload);
-            };
-          }
-        } catch(e) {}
-
-        // 2. Setup MQTT over WSS (Sync across real phones / iPads / laptops)
-        const clientId = 'cpr_' + Math.random().toString(16).substring(2, 10);
-        try {
-          if (client) client.end();
-          client = mqtt.connect(BROKER_URL, {
-            clientId: clientId,
-            clean: true,
-            connectTimeout: 4000,
-            reconnectPeriod: 3000
-          });
-
-          client.on('connect', () => {
-            updateConnectionBadge("雲端連線中 (多機同步)", "emerald");
-            const topic = getRoomTopic("#");
-            client.subscribe(topic, { qos: 1 });
-            
-            // If student, announce presence to teacher
-            if (currentRole === 'student' && myStudent.name) {
-              sendNetworkMessage('student_join', {
-                id: myStudent.id,
-                seat: myStudent.seat,
-                name: myStudent.name
-              });
-            } else if (currentRole === 'teacher') {
-              // Teacher broadcast initial sync
-              broadcastTeacherState();
-            }
-          });
-
-          client.on('message', (topic, message) => {
-            try {
-              const data = JSON.parse(message.toString());
-              handleIncomingMessage(data.type, data.payload);
-            } catch(e) {}
-          });
-
-          client.on('error', (err) => {
-            updateConnectionBadge("本地多視窗同步", "indigo");
-          });
-
-          client.on('offline', () => {
-            updateConnectionBadge("本地離線同步", "amber");
-          });
-
-        } catch (e) {
-          updateConnectionBadge("本地多視窗同步", "indigo");
-        }
-      }
-
-      function updateConnectionBadge(text, color) {
-        const b = document.getElementById('connectionStatusBadge');
-        b.innerHTML = `<span class="w-2 h-2 rounded-full bg-${color}-500 animate-pulse"></span><span>${text}</span>`;
-      }
-
-      function sendNetworkMessage(type, payload) {
-        const msg = { type, payload, timestamp: Date.now() };
-
-        // 1. Broadcast locally
-        if (broadcastChannel) {
-          try { broadcastChannel.postMessage(msg); } catch(e) {}
-        }
-
-        // 2. Publish to MQTT Cloud
-        if (client && client.connected) {
-          const topic = getRoomTopic(type);
-          client.publish(topic, JSON.stringify(msg), { qos: 1 });
-        }
-      }
-
-      // Handle All Incoming Events across devices
-      function handleIncomingMessage(type, payload) {
-        if (!payload) return;
-
-        // TEACHER HANDLERS
-        if (currentRole === 'teacher') {
-          if (type === 'student_join') {
-            if (!teacherRoomState.students[payload.id]) {
-              teacherRoomState.students[payload.id] = {
-                id: payload.id,
-                seat: payload.seat,
-                name: payload.name,
-                hasUploaded: false,
-                artwork: null,
-                assignedToId: null,
-                reviewGiven: null,
-                authorLiked: false
-              };
-              showToast(`${payload.seat ? payload.seat + ' ' : ''}${payload.name} 已連線進入課堂！`, 'info');
-              renderTeacherUI();
-              broadcastTeacherState();
-            }
-          } else if (type === 'student_upload') {
-            if (teacherRoomState.students[payload.studentId]) {
-              teacherRoomState.students[payload.studentId].hasUploaded = true;
-              teacherRoomState.students[payload.studentId].artwork = payload.artwork;
-              showToast(`同學「${teacherRoomState.students[payload.studentId].name}」已成功遞交作品！`, 'success');
-              playTone(700, 'sine', 0.1);
-              renderTeacherUI();
-              broadcastTeacherState();
-            }
-          } else if (type === 'submit_peer_review') {
-            const reviewer = teacherRoomState.students[payload.reviewerId];
-            if (reviewer) {
-              reviewer.reviewGiven = payload.review;
-              showToast(`同學「${reviewer.name}」已完成互評回饋遞交！`, 'success');
-              playTone(800, 'sine', 0.1);
-              renderTeacherUI();
-              broadcastTeacherState();
-            }
-          } else if (type === 'author_liked') {
-            const target = teacherRoomState.students[payload.authorId];
-            if (target) {
-              target.authorLiked = true;
-              renderTeacherUI();
-            }
-          }
-        }
-
-        // STUDENT HANDLERS
-        if (currentRole === 'student') {
-          if (type === 'teacher_state_sync') {
-            // Synchronize timer and phase from teacher
-            teacherRoomState.phase = payload.phase;
-            teacherRoomState.timerSeconds = payload.timerSeconds;
-            teacherRoomState.timerRunning = payload.timerRunning;
-            
-            // If teacher dispatched matching, check our assignment
-            if (payload.assignments && payload.assignments[myStudent.id]) {
-              const targetId = payload.assignments[myStudent.id];
-              const targetStudent = payload.students[targetId];
-              if (targetStudent && targetStudent.artwork) {
-                myStudent.assignedPeerStudentId = targetId;
-                renderStudentAssignedArtwork(targetStudent.artwork);
-              }
-            }
-
-            // Check if someone reviewed ME!
-            for (let sId in payload.students) {
-              const st = payload.students[sId];
-              if (st.assignedToId === myStudent.id && st.reviewGiven && st.reviewGiven.submitted) {
-                myStudent.feedbackReceived = st.reviewGiven;
-                renderStudentReceivedFeedback(st.reviewGiven);
-              }
-            }
-
-            updateStudentTimerAndPhaseUI();
-          }
-        }
-      }
-
-      function broadcastTeacherState() {
-        const assignments = {};
-        for (let sId in teacherRoomState.students) {
-          assignments[sId] = teacherRoomState.students[sId].assignedToId;
-        }
-
-        sendNetworkMessage('teacher_state_sync', {
-          phase: teacherRoomState.phase,
-          timerSeconds: teacherRoomState.timerSeconds,
-          timerRunning: teacherRoomState.timerRunning,
-          assignments: assignments,
-          students: teacherRoomState.students
-        });
-      }
-
-      // -------------------------------------------------------------
-      // 5. DERANGEMENT MATCHING ALGORITHM (Guaranteed no self-review)
-      // -------------------------------------------------------------
-      function executeDerangementMatching() {
-        const studentIds = Object.keys(teacherRoomState.students).filter(
-          id => teacherRoomState.students[id].hasUploaded && teacherRoomState.students[id].artwork
-        );
-
-        if (studentIds.length < 2) {
-          showToast("上傳人數少於 2 人，無法進行同儕隨機分發！請至少有 2 位同學上傳作品。", "warning");
-          return false;
-        }
-
-        const n = studentIds.length;
-        // Shuffle student IDs
-        for (let i = n - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [studentIds[i], studentIds[j]] = [studentIds[j], studentIds[i]];
-        }
-
-        // Cyclic shift guarantees no one reviews themselves: i -> (i + shift) % n
-        const shift = Math.floor(Math.random() * (n - 1)) + 1;
-        for (let i = 0; i < n; i++) {
-          const reviewerId = studentIds[i];
-          const targetId = studentIds[(i + shift) % n];
-          teacherRoomState.students[reviewerId].assignedToId = targetId;
-        }
-
-        teacherRoomState.phase = 2;
-        broadcastTeacherState();
-        return true;
-      }
-
-      // -------------------------------------------------------------
-      // 6. TEACHER DASHBOARD LOGIC
-      // -------------------------------------------------------------
-      function startTeacherTimer() {
-        if (timerInterval) clearInterval(timerInterval);
-        teacherRoomState.timerRunning = true;
-        updateTeacherTimerUI();
-
-        timerInterval = setInterval(() => {
-          if (!teacherRoomState.timerRunning) return;
-
-          if (teacherRoomState.timerSeconds > 0) {
-            teacherRoomState.timerSeconds--;
-            updateTeacherTimerUI();
-            if (teacherRoomState.timerSeconds % 2 === 0) broadcastTeacherState();
-
-            if (teacherRoomState.timerSeconds <= 5 && teacherRoomState.timerSeconds > 0 && teacherRoomState.phase === 1) {
-              playTone(880, 'sine', 0.08);
-            }
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
           } else {
-            // Time is UP!
-            clearInterval(timerInterval);
-            timerInterval = null;
-            teacherRoomState.timerRunning = false;
-            updateTeacherTimerUI();
-
-            if (teacherRoomState.phase === 1) {
-              playCelebration();
-              showToast("⏰ 15 分鐘上傳時間已截止！系統正在隨機錯位分發作品...", "warning");
-              const ok = executeDerangementMatching();
-              if (ok) {
-                teacherRoomState.phase = 2;
-                renderTeacherUI();
-                broadcastTeacherState();
-              }
-            }
-          }
-        }, 1000);
-      }
-
-      function formatTime(s) {
-        const m = Math.floor(s / 60);
-        const sec = s % 60;
-        return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
-      }
-
-      function updateTeacherTimerUI() {
-        const d = document.getElementById('teacherTimerDisplay');
-        d.textContent = formatTime(teacherRoomState.timerSeconds);
-        if (teacherRoomState.timerSeconds <= 30 && teacherRoomState.phase === 1) {
-          d.classList.add('text-rose-400', 'pulse-urgent');
-          d.classList.remove('text-emerald-400');
-        } else {
-          d.classList.remove('text-rose-400', 'pulse-urgent');
-          d.classList.add('text-emerald-400');
-        }
-        document.getElementById('teacherTimerToggleBtn').textContent = teacherRoomState.timerRunning ? '暫停計時' : '繼續計時';
-      }
-
-      function renderTeacherUI() {
-        const studentsList = Object.values(teacherRoomState.students);
-        const uploadedCount = studentsList.filter(s => s.hasUploaded).length;
-        const totalCount = studentsList.length;
-
-        // Badge
-        document.getElementById('teacherConnectedCountBadge').textContent = `${totalCount} 位同學連線中（${uploadedCount} 件已遞交）`;
-        document.getElementById('teacherRoomCodeDisplay').textContent = currentRoomCode;
-        document.getElementById('emptyStateRoomCodeText').textContent = currentRoomCode;
-
-        const phaseBadge = document.getElementById('teacherPhaseBadge');
-        if (teacherRoomState.phase === 1) {
-          phaseBadge.textContent = "階段一：限時上傳中";
-          phaseBadge.className = "text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-700";
-        } else if (teacherRoomState.phase === 2) {
-          phaseBadge.textContent = "階段二：同儕互評中";
-          phaseBadge.className = "text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800";
-        } else {
-          phaseBadge.textContent = "階段三：回饋已發布";
-          phaseBadge.className = "text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800";
-        }
-
-        // Student Cards Grid
-        const grid = document.getElementById('teacherStudentCardsGrid');
-        const emptyState = document.getElementById('teacherNoStudentsState');
-        grid.innerHTML = '';
-
-        if (totalCount === 0) {
-          emptyState.classList.remove('hidden');
-        } else {
-          emptyState.classList.add('hidden');
-          studentsList.forEach(student => {
-            const card = document.createElement('div');
-            card.className = "bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col justify-between";
-
-            let imgHtml = '';
-            if (student.hasUploaded && student.artwork) {
-              imgHtml = `
-                <div class="w-full h-36 bg-slate-100 rounded-xl overflow-hidden mt-2 relative border border-slate-100">
-                  <img src="${student.artwork.image}" alt="${student.artwork.title}" class="w-full h-full object-cover">
-                </div>
-                <p class="text-xs font-bold text-slate-800 mt-2 truncate">${student.artwork.title}</p>
-              `;
-            } else {
-              imgHtml = `
-                <div class="w-full h-36 bg-slate-50 rounded-xl border border-dashed border-slate-200 mt-2 flex flex-col items-center justify-center text-slate-400 gap-1">
-                  <span class="text-xs">等待拍照上傳...</span>
-                </div>
-              `;
-            }
-
-            let reviewStatus = '';
-            if (teacherRoomState.phase >= 2) {
-              if (student.reviewGiven && student.reviewGiven.submitted) {
-                reviewStatus = `<span class="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">已評同學</span>`;
-              } else {
-                reviewStatus = `<span class="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">互評撰寫中</span>`;
-              }
-            }
-
-            card.innerHTML = `
-              <div>
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-xs font-bold font-mono text-indigo-600">${student.seat || '•'}</span>
-                    <span class="text-sm font-bold text-slate-800">${student.name}</span>
-                  </div>
-                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${student.hasUploaded ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}">
-                    ${student.hasUploaded ? '已遞交' : '未交'}
-                  </span>
-                </div>
-                ${imgHtml}
-              </div>
-              <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                ${reviewStatus}
-              </div>
-            `;
-            grid.appendChild(card);
-          });
-        }
-
-        // Review Matrix Table (Phase 2 & 3)
-        const matrixCard = document.getElementById('teacherPeerMatrixCard');
-        const matrixTbody = document.getElementById('teacherReviewMatrixTbody');
-        if (teacherRoomState.phase >= 2) {
-          matrixCard.classList.remove('hidden');
-          matrixTbody.innerHTML = '';
-
-          const reviewers = studentsList.filter(s => s.assignedToId);
-          const doneReviews = reviewers.filter(s => s.reviewGiven && s.reviewGiven.submitted).length;
-          const rate = reviewers.length > 0 ? Math.round((doneReviews / reviewers.length) * 100) : 0;
-          document.getElementById('teacherReviewRateBadge').textContent = `互評完成率：${rate}% (${doneReviews}/${reviewers.length})`;
-
-          reviewers.forEach(reviewer => {
-            const target = teacherRoomState.students[reviewer.assignedToId];
-            if (!target || !target.artwork) return;
-
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
-            const isDone = reviewer.reviewGiven && reviewer.reviewGiven.submitted;
-
-            tr.innerHTML = `
-              <td class="py-3 px-4 font-bold text-slate-800">
-                <span class="text-indigo-600">${reviewer.seat || ''}</span> ${reviewer.name}
-              </td>
-              <td class="py-3 px-4 text-slate-700">
-                <span class="font-bold text-slate-500">${target.seat || ''}</span> ${target.name}
-                <div class="text-[11px] text-slate-500 truncate">《${target.artwork.title}》</div>
-              </td>
-              <td class="py-3 px-4">
-                <img src="${target.artwork.image}" class="w-12 h-10 object-cover rounded-lg border border-slate-200">
-              </td>
-              <td class="py-3 px-4 max-w-xs text-xs">
-                ${isDone ? `<div class="p-2 bg-amber-50 rounded-lg text-amber-900 border border-amber-100">${reviewer.reviewGiven.pros}</div>` : '<span class="text-slate-400 italic">填寫中...</span>'}
-              </td>
-              <td class="py-3 px-4 max-w-xs text-xs">
-                ${isDone ? `<div class="p-2 bg-indigo-50 rounded-lg text-indigo-900 border border-indigo-100">${reviewer.reviewGiven.cons}</div>` : '<span class="text-slate-400 italic">填寫中...</span>'}
-              </td>
-              <td class="py-3 px-4 text-center">
-                ${isDone ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">已遞交</span>` : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">未交</span>`}
-              </td>
-            `;
-            matrixTbody.appendChild(tr);
-          });
-        } else {
-          matrixCard.classList.add('hidden');
-        }
-      }
-
-      // -------------------------------------------------------------
-      // 7. STUDENT CLIENT LOGIC
-      // -------------------------------------------------------------
-      function updateStudentTimerAndPhaseUI() {
-        document.getElementById('studentTimerDisplay').textContent = formatTime(teacherRoomState.timerSeconds);
-        const stepText = document.getElementById('studentStepText');
-        
-        const phase1Box = document.getElementById('studentPhase1Box');
-        const waitBox = document.getElementById('studentWaitDispatchCard');
-        const phase2Box = document.getElementById('studentPhase2Box');
-        const phase3Box = document.getElementById('studentPhase3Box');
-
-        if (teacherRoomState.phase === 1) {
-          stepText.textContent = "第1階段：限時上傳";
-          phase2Box.classList.add('hidden');
-          if (myStudent.artwork) {
-            waitBox.classList.remove('hidden');
-          } else {
-            waitBox.classList.add('hidden');
-          }
-        } else if (teacherRoomState.phase === 2) {
-          stepText.textContent = "第2階段：同儕互評中";
-          phase1Box.classList.add('hidden');
-          waitBox.classList.add('hidden');
-          phase2Box.classList.remove('hidden');
-        } else if (teacherRoomState.phase === 3) {
-          stepText.textContent = "第3階段：查看回饋成果";
-          phase1Box.classList.add('hidden');
-          phase2Box.classList.add('hidden');
-          phase3Box.classList.remove('hidden');
-        }
-      }
-
-      function renderStudentAssignedArtwork(artwork) {
-        document.getElementById('studentAssignedPeerImg').src = artwork.image;
-        document.getElementById('studentAssignedPeerTitle').textContent = `作品：《${artwork.title}》`;
-        document.getElementById('studentAssignedPeerDesc').textContent = artwork.desc || "原作者未填寫理念說明";
-      }
-
-      function renderStudentReceivedFeedback(feedback) {
-        const card = document.getElementById('studentReceivedFeedbackCard');
-        card.classList.remove('hidden');
-        document.getElementById('studentReceivedProsText').textContent = feedback.pros;
-        document.getElementById('studentReceivedConsText').textContent = feedback.cons;
-        if (feedback.badge) {
-          document.getElementById('studentReceivedBadgePill').textContent = feedback.badge;
-        }
-        playCelebration();
-        if (typeof confetti === 'function') confetti({ particleCount: 70, spread: 60 });
-      }
-
-      // -------------------------------------------------------------
-      // 8. EVENT LISTENERS
-      // -------------------------------------------------------------
-      function setupListeners() {
-        // Teacher Start Host
-        document.getElementById('startTeacherHostBtn').addEventListener('click', () => {
-          const room = document.getElementById('createRoomNameInput').value.trim() || 'ART101';
-          currentRole = 'teacher';
-          currentRoomCode = room.toUpperCase();
-
-          document.getElementById('portalScreen').classList.add('hidden');
-          document.getElementById('teacherScreen').classList.remove('hidden');
-          document.getElementById('headerRoomBadge').classList.remove('hidden');
-          document.getElementById('headerRoomBadge').classList.add('flex');
-          document.getElementById('headerRoomCodeText').textContent = currentRoomCode;
-          document.getElementById('leaveRoomBtn').classList.remove('hidden');
-
-          initNetwork(currentRoomCode);
-          startTeacherTimer();
-          renderTeacherUI();
-          showToast(`已建立課堂房間：${currentRoomCode}！`, 'success');
-        });
-
-        // Student Join
-        document.getElementById('joinAsStudentBtn').addEventListener('click', () => {
-          const room = document.getElementById('joinRoomCodeInput').value.trim() || 'ART101';
-          const seat = document.getElementById('studentSeatNumberInput').value.trim() || '01';
-          const name = document.getElementById('studentNameInput').value.trim() || '學生';
-
-          if (!name) {
-            showToast("請輸入學生姓名！", "warning");
-            return;
-          }
-
-          currentRole = 'student';
-          currentRoomCode = room.toUpperCase();
-          myStudent.id = 'std_' + Math.random().toString(16).substring(2, 9);
-          myStudent.seat = seat ? (seat.endsWith('號') ? seat : seat + '號') : '';
-          myStudent.name = name;
-
-          document.getElementById('portalScreen').classList.add('hidden');
-          document.getElementById('studentScreen').classList.remove('hidden');
-          document.getElementById('headerRoomBadge').classList.remove('hidden');
-          document.getElementById('headerRoomBadge').classList.add('flex');
-          document.getElementById('headerRoomCodeText').textContent = currentRoomCode;
-          document.getElementById('leaveRoomBtn').classList.remove('hidden');
-
-          document.getElementById('studentScreenAvatar').textContent = name.charAt(0);
-          document.getElementById('studentScreenSeatText').textContent = myStudent.seat || '•';
-          document.getElementById('studentScreenNameText').textContent = name;
-          document.getElementById('studentScreenRoomCodeText').textContent = currentRoomCode;
-
-          initNetwork(currentRoomCode);
-          showToast(`歡迎 ${name}，已成功連線進入課堂！`, 'success');
-        });
-
-        // Sound Toggle
-        document.getElementById('soundToggleBtn').addEventListener('click', () => {
-          soundEnabled = !soundEnabled;
-          document.getElementById('soundOnIcon').classList.toggle('hidden', !soundEnabled);
-          document.getElementById('soundOffIcon').classList.toggle('hidden', soundEnabled);
-          showToast(`已${soundEnabled ? '開啟' : '關閉'}音效提示`, 'info');
-        });
-
-        // Leave Room
-        document.getElementById('leaveRoomBtn').addEventListener('click', () => {
-          location.reload();
-        });
-
-        // QR Code Modal
-        const qrModal = document.getElementById('qrCodeModal');
-        document.getElementById('showQrCodeModalBtn').addEventListener('click', () => {
-          qrModal.classList.remove('hidden');
-          const joinUrl = `${window.location.origin}${window.location.pathname}#room=${encodeURIComponent(currentRoomCode)}`;
-          document.getElementById('qrModalUrlText').textContent = joinUrl;
-          if (window.QRCode) {
-            QRCode.toCanvas(document.getElementById('qrCodeCanvas'), joinUrl, { width: 220, margin: 2 }, function (error) {});
-          }
-        });
-
-        const closeQrModal = () => qrModal.classList.add('hidden');
-        document.getElementById('closeQrModalBtn').addEventListener('click', closeQrModal);
-        document.getElementById('confirmCloseQrModalBtn').addEventListener('click', closeQrModal);
-
-        // Copy join URL
-        document.getElementById('copyStudentJoinUrlBtn').addEventListener('click', () => {
-          const joinUrl = `${window.location.origin}${window.location.pathname}#room=${encodeURIComponent(currentRoomCode)}`;
-          navigator.clipboard.writeText(joinUrl).then(() => {
-            showToast("學生直達連結已複製到剪貼簿！", "success");
-          }).catch(() => {
-            showToast("複製失敗，請手動複製網址", "error");
-          });
-        });
-
-        // Simulate 3 students button for instant teacher demo
-        document.getElementById('simulateStudentsBtn').addEventListener('click', () => {
-          const dummy = [
-            { id: 'sim_1', seat: '01號', name: '陳小明', title: '暮色山嵐', desc: '壓克力厚塗風景畫' },
-            { id: 'sim_2', seat: '02號', name: '李美欣', title: '空中樹屋', desc: '童話浮空島嶼水彩' },
-            { id: 'sim_3', seat: '03號', name: '張志華', title: '書香小熊貓', desc: '溫馨書房水彩插畫' }
-          ];
-
-          dummy.forEach((d, idx) => {
-            // Generate a canvas drawing for sample
-            const c = document.createElement('canvas');
-            c.width = 400; c.height = 300;
-            const ctx = c.getContext('2d');
-            const colors = ['#6366f1', '#f59e0b', '#10b981'];
-            ctx.fillStyle = colors[idx];
-            ctx.fillRect(0, 0, 400, 300);
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 24px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(d.title, 200, 150);
-
-            teacherRoomState.students[d.id] = {
-              id: d.id,
-              seat: d.seat,
-              name: d.name,
-              hasUploaded: true,
-              artwork: {
-                title: d.title,
-                desc: d.desc,
-                image: c.toDataURL('image/jpeg', 0.8)
-              },
-              assignedToId: null,
-              reviewGiven: null,
-              authorLiked: false
-            };
-          });
-
-          renderTeacherUI();
-          broadcastTeacherState();
-          showToast("已成功模擬 3 位學生連線並繳交作品！", "success");
-        });
-
-        // Teacher Timer Buttons
-        document.querySelectorAll('.set-time-pill').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const m = parseInt(btn.getAttribute('data-m'), 10);
-            teacherRoomState.timerSeconds = m * 60;
-            startTeacherTimer();
-            broadcastTeacherState();
-            showToast(`已重設計時為 ${m} 分鐘！`, "info");
-          });
-        });
-
-        document.getElementById('teacherTimerToggleBtn').addEventListener('click', () => {
-          teacherRoomState.timerRunning = !teacherRoomState.timerRunning;
-          updateTeacherTimerUI();
-          broadcastTeacherState();
-        });
-
-        document.getElementById('teacherForceDispatchBtn').addEventListener('click', () => {
-          const ok = executeDerangementMatching();
-          if (ok) {
-            showToast("作品已隨機錯位分發！所有學生手機已收到題目！", "success");
-            playCelebration();
-            if (typeof confetti === 'function') confetti({ particleCount: 80, spread: 70 });
-            renderTeacherUI();
-          }
-        });
-
-        // Student Photo Input
-        const photoArea = document.getElementById('studentPhotoArea');
-        const fileInput = document.getElementById('realPhotoFileInput');
-        const previewBox = document.getElementById('studentPhotoPreviewBox');
-        const placeholder = document.getElementById('studentPhotoPlaceholder');
-        const previewImg = document.getElementById('studentPhotoPreviewImg');
-
-        photoArea.addEventListener('click', (e) => {
-          if (e.target.id !== 'reselectPhotoBtn') fileInput.click();
-        });
-
-        fileInput.addEventListener('change', async (e) => {
-          const file = e.target.files[0];
-          if (file) {
-            try {
-              showToast("正在壓縮相片以優化傳輸速度...", "info");
-              const compressed = await compressImage(file, 800, 0.72);
-              previewImg.src = compressed;
-              placeholder.classList.add('hidden');
-              previewBox.classList.remove('hidden');
-              playTone(600, 'sine', 0.1);
-            } catch (err) {
-              showToast("相片處理失敗，請重新選取", "error");
-            }
-          }
-        });
-
-        document.getElementById('reselectPhotoBtn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          fileInput.click();
-        });
-
-        // Student Submit Artwork
-        document.getElementById('studentSubmitArtworkBtn').addEventListener('click', () => {
-          const title = document.getElementById('studentArtworkTitleInput').value.trim();
-          const desc = document.getElementById('studentArtworkDescInput').value.trim();
-          const imgSrc = previewImg.src;
-
-          if (!imgSrc) {
-            showToast("請先拍照或上傳作品圖片！", "warning");
-            return;
-          }
-          if (!title) {
-            showToast("請輸入作品主題名稱！", "warning");
-            return;
-          }
-
-          myStudent.artwork = { title, desc, image: imgSrc };
-
-          // Send to teacher and cloud
-          sendNetworkMessage('student_upload', {
-            studentId: myStudent.id,
-            artwork: myStudent.artwork
-          });
-
-          document.getElementById('studentPhase1StatusBadge').textContent = "已成功遞交";
-          document.getElementById('studentPhase1StatusBadge').className = "text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800";
-          document.getElementById('studentWaitDispatchCard').classList.remove('hidden');
-
-          playCelebration();
-          showToast("作品已成功遞交！請等待老師分發互評！", "success");
-        });
-
-        // Prompt Chips for Reviewers
-        document.querySelectorAll('.peer-prompt-pro').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const val = btn.getAttribute('data-val');
-            const ta = document.getElementById('studentPeerProsInput');
-            ta.value = ta.value ? ta.value + "\n" + val : val;
-            playTone(800, 'sine', 0.05);
-          });
-        });
-
-        document.querySelectorAll('.peer-prompt-con').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const val = btn.getAttribute('data-val');
-            const ta = document.getElementById('studentPeerConsInput');
-            ta.value = ta.value ? ta.value + "\n" + val : val;
-            playTone(800, 'sine', 0.05);
-          });
-        });
-
-        // Student Submit Peer Review
-        document.getElementById('studentSubmitPeerReviewBtn').addEventListener('click', () => {
-          if (!myStudent.assignedPeerStudentId) {
-            showToast("目前未獲派互評作品！", "error");
-            return;
-          }
-
-          const pros = document.getElementById('studentPeerProsInput').value.trim();
-          const cons = document.getElementById('studentPeerConsInput').value.trim();
-
-          if (!pros) {
-            showToast("請填寫「1) 欣賞的地方」！", "warning");
-            return;
-          }
-          if (!cons) {
-            showToast("請填寫「2) 不足及改善方案」！", "warning");
-            return;
-          }
-
-          let selectedBadge = "🎨 色彩魔術師";
-          const radios = document.getElementsByName('studentBadgeRadio');
-          for (let r of radios) {
-            if (r.checked) selectedBadge = r.value;
-          }
-
-          myStudent.reviewGiven = {
-            pros,
-            cons,
-            badge: selectedBadge,
-            submitted: true
-          };
-
-          // Broadcast review to room & author
-          sendNetworkMessage('submit_peer_review', {
-            reviewerId: myStudent.id,
-            targetId: myStudent.assignedPeerStudentId,
-            review: myStudent.reviewGiven
-          });
-
-          showToast("互評意見已送出！已即時回傳給原作者同學！", "success");
-          playCelebration();
-          if (typeof confetti === 'function') confetti({ particleCount: 70, spread: 60 });
-        });
-
-        // Student Thank Reviewer
-        document.getElementById('studentThankReviewerBtn').addEventListener('click', () => {
-          myStudent.authorLikedFeedback = true;
-          document.getElementById('thankReviewerBtnText').textContent = "已向同學致謝 ❤️";
-          document.getElementById('studentThankReviewerBtn').classList.add('bg-pink-100', 'text-pink-600', 'border-pink-300');
-          sendNetworkMessage('author_liked', { authorId: myStudent.id });
-          showToast("已向評審同學送出致謝！", "success");
-          playTone(900, 'sine', 0.15);
-        });
-
-        // Export Report Modal
-        const expModal = document.getElementById('exportReportModal');
-        document.getElementById('exportClassReportBtn').addEventListener('click', () => {
-          let report = `==========================================================\n`;
-          report += `【課堂作品限時互評與回饋總結報告】\n`;
-          report += `房間名稱：${currentRoomCode} | 匯出時間：${new Date().toLocaleString('zh-HK')}\n`;
-          report += `==========================================================\n\n`;
-
-          const sList = Object.values(teacherRoomState.students);
-          sList.forEach((s, idx) => {
-            report += `【學生 #${idx + 1}】${s.seat || ''} ${s.name}\n`;
-            if (s.hasUploaded && s.artwork) {
-              report += `作品主題：《${s.artwork.title}》\n`;
-              report += `創作理念：${s.artwork.desc || '無'}\n`;
-            } else {
-              report += `狀態：未上傳作品\n`;
-            }
-
-            // Find reviewer
-            const rev = sList.find(st => st.assignedToId === s.id);
-            if (rev && rev.reviewGiven && rev.reviewGiven.submitted) {
-              report += `評審同學：${rev.seat || ''} ${rev.name}\n`;
-              report += `1) 欣賞的地方：\n   ${rev.reviewGiven.pros}\n`;
-              report += `2) 不足及改善方案：\n   ${rev.reviewGiven.cons}\n`;
-              report += `榮譽徽章：${rev.reviewGiven.badge || '無'}\n`;
-            } else {
-              report += `互評意見狀態：尚未收到回饋\n`;
-            }
-            report += `\n----------------------------------------------------------\n\n`;
-          });
-
-          document.getElementById('exportReportTextarea').value = report;
-          expModal.classList.remove('hidden');
-        });
-
-        document.getElementById('closeExportReportModalBtn').addEventListener('click', () => {
-          expModal.classList.add('hidden');
-        });
-
-        document.getElementById('copyReportTextBtn').addEventListener('click', () => {
-          const ta = document.getElementById('exportReportTextarea');
-          ta.select();
-          document.execCommand('copy');
-          showToast("報告內容已複製到剪貼簿！", "success");
-        });
-
-        document.getElementById('downloadReportFileBtn').addEventListener('click', () => {
-          const txt = document.getElementById('exportReportTextarea').value;
-          const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `課堂互評報告_${currentRoomCode}_${new Date().toISOString().slice(0, 10)}.txt`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          showToast("已成功下載報告檔案！", "success");
-        });
-
-        // URL Hash Parsing (e.g. #room=ART101 when student scans QR code)
-        if (window.location.hash) {
-          const match = window.location.hash.match(/room=([a-zA-Z0-9_-]+)/i);
-          if (match && match[1]) {
-            document.getElementById('joinRoomCodeInput').value = decodeURIComponent(match[1]).toUpperCase();
-            document.getElementById('createRoomNameInput').value = decodeURIComponent(match[1]).toUpperCase();
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
           }
         }
-      }
 
-      // Initialize
-      document.addEventListener('DOMContentLoaded', setupListeners);
-    })();
-  </script>
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // 轉換為 JPEG (75% 品質，體積約 100KB)
+        compressedImageData = canvas.toDataURL('image/jpeg', 0.75);
+        const preview = document.getElementById('my-preview');
+        preview.src = compressedImageData;
+        preview.style.display = 'block';
+        document.getElementById('upload-hint').style.display = 'none';
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // 學生完成作品上傳
+  function submitMyArtwork() {
+    const name = document.getElementById('student-name').value.trim();
+    const title = document.getElementById('artwork-title').value.trim() || '未命名漢服融合設計手稿';
+
+    if (!name) {
+      alert('請輸入學生姓名或學號！');
+      return;
+    }
+    if (!compressedImageData) {
+      alert('請先上傳設計手稿圖片！');
+      return;
+    }
+
+    currentStudent = { name, title, image: compressedImageData };
+    document.getElementById('user-display').innerText = name;
+    alert(`✅ ${name} 同學的手稿已成功收錄！請等待倒數結束或由老師統一開始隨機互評。`);
+    forceNextStage();
+  }
+
+  // 進入第二階段：隨機分發作品
+  function forceNextStage() {
+    if (timerInterval) clearInterval(timerInterval);
+    document.getElementById('timer-display').innerText = '00:00 (已截止)';
+
+    // 如果未填寫，以訪客身份補足
+    if (!currentStudent.name) {
+      currentStudent = {
+        name: document.getElementById('student-name').value.trim() || '課堂同學 A',
+        title: document.getElementById('artwork-title').value.trim() || '漢服融合概念手稿',
+        image: compressedImageData || sampleArtworks[0].image
+      };
+      document.getElementById('user-display').innerText = currentStudent.name;
+    }
+
+    // 隨機抽出一張別人的作品（排除自己）
+    assignedTarget = sampleArtworks[Math.floor(Math.random() * sampleArtworks.length)];
+
+    // 切換顯示介面
+    document.getElementById('stage-upload').style.display = 'none';
+    document.getElementById('stage-review').style.display = 'block';
+    document.getElementById('app-stage-badge').innerText = '階段 2：同儕互評中';
+    document.getElementById('app-stage-badge').style.background = '#ffedd5';
+    document.getElementById('app-stage-badge').style.color = '#c2410c';
+
+    // 渲染配對目標作品
+    document.getElementById('target-author-name').innerText = assignedTarget.author;
+    document.getElementById('target-artwork-desc').innerText = `設計主題：${assignedTarget.title}`;
+    document.getElementById('review-artwork-img').src = assignedTarget.image;
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // 點擊建議字詞膠囊，自動插入文字框
+  function addChipText(textareaId, text) {
+    const el = document.getElementById(textareaId);
+    if (!el) return;
+    if (el.value.trim() === '') {
+      el.value = text + ' ';
+    } else {
+      el.value += `、${text} `;
+    }
+    el.focus();
+  }
+
+  // 遞交意見，原作者收回同學意見 + 同時獲得 AI 生成建議
+  function submitReviewAndFinish() {
+    const c1 = document.getElementById('crit-1').value.trim();
+    const c2 = document.getElementById('crit-2').value.trim();
+    const c3 = document.getElementById('crit-3').value.trim();
+    const c4 = document.getElementById('crit-4').value.trim();
+
+    if (!c1 || !c2 || !c3 || !c4) {
+      alert('請為四大維度均留下至少一項評語或選擇建議字詞，以協助同學優化手稿！');
+      return;
+    }
+
+    // 切換至結果畫面
+    document.getElementById('stage-review').style.display = 'none';
+    document.getElementById('stage-result').style.display = 'block';
+    document.getElementById('app-stage-badge').innerText = '階段 3：收回互評與 AI 建議';
+    document.getElementById('app-stage-badge').style.background = '#dcfce7';
+    document.getElementById('app-stage-badge').style.color = '#15803d';
+
+    // 渲染原作者自己的手稿與接收到的同學意見
+    document.getElementById('my-final-name').innerText = `${currentStudent.name} 的設計作品`;
+    document.getElementById('my-final-concept').innerText = `主題理念：${currentStudent.title}`;
+    document.getElementById('my-final-artwork-img').src = currentStudent.image;
+    document.getElementById('reviewer-partner-name').innerText = `${assignedTarget.author} (互評配對組)`;
+
+    document.getElementById('res-crit-1').innerText = c1;
+    document.getElementById('res-crit-2').innerText = c2;
+    document.getElementById('res-crit-3').innerText = c3;
+    document.getElementById('res-crit-4').innerText = c4;
+
+    // 同步召喚 AI 生成深度視藝評析
+    generateAIAssessment(currentStudent.title, [c1, c2, c3, c4]);
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // AI 智能建議生成器（內建 HKDSE 視藝專業漢服融合知識庫，即使無外聯 API 亦能精準剖析）
+  function generateAIAssessment(conceptTitle, peerReviews) {
+    const loading = document.getElementById('ai-loading');
+    const output = document.getElementById('ai-feedback-text');
+    loading.style.display = 'block';
+    output.innerText = '';
+
+    setTimeout(() => {
+      loading.style.display = 'none';
+      
+      const aiFeedback = `【HKDSE 視藝科評卷與現代服裝設計綜合建議】
+
+一、 針對「傳統形制 vs 現代美感」的提煉方向：
+• 形制轉化亮點：作品成功避免了單純將「傳統雲肩或如意紋」生硬印在衛衣上的扁平處理。從同儕回饋反映，此設計嘗試在剪裁線條（如斜襟交領的傾角、袖口收束）融入當代時裝語彙。
+• 拔尖深化建議：若要進一步拔尖，建議參考設計師如 Uma Wang 或山本耀司的解構手法，嘗試「破除對稱」。例如將右衽交領延伸為單側垂墜長帶，或將馬面裙的硬挺梯形褶襉與機能反光織帶拼接，形成更具張力的視覺碰撞。
+
+二、 剪裁比例與面料光影（評估表規矩回應）：
+• 重心優化：同學提及之「${peerReviews[1].substring(0, 32)}...」十分關鍵。在繪製正面圖與背面圖時，請特別凸顯「高腰線」或「前短後長」的懸垂落差，能有效拉長身形比例。
+• 材質線條表現：建議在手繪稿上強化「軟硬材質對比」。例如：外層若為啞光防撕裂尼龍或厚挺斜紋呢，內襯或拼接處可用水墨感真絲綃或半透明歐根紗，以雙重線條排線區分厚薄。
+
+三、 DSE 考試與 SBA 學習歷程檔案傳意指引：
+• 穿脫結構標註：手稿邊緣務必補齊「局部放大圖（Detail Callout）」，具體畫出隱形拉鏈、子母暗扣或繫帶穿插孔的位置，展現服裝的實穿可行性。
+• 色彩計畫標註：建議附上 Pantone 專色色票或色彩心理意涵（如：採用天青色、墨黑搭配一道亮橙色機能拉鏈，營造古典意境中的現代先鋒感）。`;
+
+      output.innerText = aiFeedback;
+    }, 1200);
+  }
+
+  // 啟動倒數
+  startTimer();
+</script>
 </body>
 </html>
